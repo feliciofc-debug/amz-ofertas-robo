@@ -1,9 +1,1 @@
-services:
-  - type: web
-    name: amz-ofertas-robo
-    env: node
-    plan: free
-    buildCommand: "npm install"
-    startCommand: "node server.js"
-    buildpacks:
-      - https://github.com/heroku/heroku-buildpack-google-chrome
+
