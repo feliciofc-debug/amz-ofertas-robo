@@ -1,8 +1,8 @@
 // ===============================================================
-// SERVER.JS COM DIAGNÓSTICO SUGERIDO PELA CLAUDE
+// SERVER.JS - VERSÃO FINAL OTIMIZADA PARA MEMÓRIA
 // ===============================================================
 
-console.log('=== AMZ OFERTAS INICIANDO ===');
+console.log('=== AMZ OFERTAS INICIANDO - v.Otimizada ===');
 console.log('Porta configurada:', process.env.PORT || 'PORTA NÃO DEFINIDA');
 console.log('Ambiente:', process.env.NODE_ENV || 'desenvolvimento');
 
@@ -19,6 +19,7 @@ app.get('/', (req, res) => {
     res.json({ 
         status: 'online',
         message: 'AMZ Ofertas Robô está vivo e respondendo!',
+        version: 'otimizada',
         timestamp: new Date().toISOString()
     });
 });
@@ -26,15 +27,25 @@ app.get('/', (req, res) => {
 // ROTA DO GARIMPEIRO (AGORA EM /scrape)
 app.get('/scrape', async (req, res) => {
     console.log('>>> REQUISIÇÃO RECEBIDA EM /scrape! INICIANDO GARIMPO... <<<');
+    let browser = null; // Define o browser como nulo inicialmente
     try {
-        console.log('Iniciando o navegador com a nova estratégia...');
-        const browser = await puppeteer.launch({
-            args: chromium.args,
+        console.log('Iniciando o navegador com a estratégia OTIMIZADA PARA MEMÓRIA...');
+        
+        // --- CÓDIGO OTIMIZADO PARA CONSUMIR MENOS MEMÓRIA ---
+        browser = await puppeteer.launch({
+            args: [
+                ...chromium.args,
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--no-zygote',
+                '--single-process'
+            ],
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
             ignoreHTTPSErrors: true,
         });
+        // --- FIM DO CÓDIGO OTIMIZADO ---
 
         const page = await browser.newPage();
         console.log('Navegando para a Shopee...');
@@ -55,8 +66,6 @@ app.get('/scrape', async (req, res) => {
             return items.slice(0, 5);
         });
 
-        console.log('Fechando o navegador...');
-        await browser.close();
         console.log('GARIMPO CONCLUÍDO COM SUCESSO!');
         res.setHeader('Content-Type', 'application/json');
         res.send(JSON.stringify(products, null, 2));
@@ -68,6 +77,12 @@ app.get('/scrape', async (req, res) => {
             message: 'Ocorreu um erro durante o garimpo.',
             error: error.message
         });
+    } finally {
+        // Garante que o navegador será fechado mesmo se ocorrer um erro
+        if (browser) {
+            await browser.close();
+            console.log('Navegador fechado com sucesso.');
+        }
     }
 });
 
