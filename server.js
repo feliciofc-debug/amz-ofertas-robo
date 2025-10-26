@@ -1,10 +1,8 @@
 // ===============================================================
-// SERVER.JS - v.FINAL com SELETORES ATUALIZADOS
+// SERVER.JS - v.SUPER HUMANO 
 // ===============================================================
 
-console.log('=== AMZ OFERTAS INICIANDO - v.Final com Mapa Atualizado ===');
-console.log('Porta configurada:', process.env.PORT || 'PORTA NÃO DEFINIDA');
-console.log('Ambiente:', process.env.NODE_ENV || 'desenvolvimento');
+console.log('=== AMZ OFERTAS INICIANDO - v.Super Humano ===');
 
 const express = require('express');
 const chromium = require('@sparticuz/chromium');
@@ -13,24 +11,16 @@ const puppeteer = require('puppeteer-core');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ROTA DE TESTE DE "BATIMENTO CARDÍACO"
+// ROTA DE TESTE
 app.get('/', (req, res) => {
-    console.log('>>> REQUISIÇÃO RECEBIDA NA RAIZ (/)! O SERVIDOR ESTÁ RESPONDENDO! <<<');
-    res.json({ 
-        status: 'online',
-        message: 'AMZ Ofertas Robô está vivo e respondendo!',
-        version: 'final-mapa-atualizado',
-        timestamp: new Date().toISOString()
-    });
+    res.json({ status: 'online', version: 'super-humano' });
 });
 
 // ROTA DO GARIMPEIRO
 app.get('/scrape', async (req, res) => {
-    console.log('>>> REQUISIÇÃO RECEBIDA EM /scrape! INICIANDO GARIMPO COM MAPA NOVO... <<<');
+    console.log('>>> INICIANDO GARIMPO EM MODO SUPER-HUMANO... <<<');
     let browser = null;
     try {
-        console.log('Iniciando o navegador com a estratégia OTIMIZADA PARA MEMÓRIA...');
-        
         browser = await puppeteer.launch({
             args: [
                 ...chromium.args,
@@ -46,44 +36,48 @@ app.get('/scrape', async (req, res) => {
         });
 
         const page = await browser.newPage();
-        console.log('Navegando para a Shopee...');
+        
+        // TÉCNICA 1: MASCARANDO O NAVEGADOR
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
+
+        console.log('Navegando para a Shopee como um "humano"...');
         await page.goto('https://shopee.com.br/search?keyword=fone%20de%20ouvido%20bluetooth', {
-            waitUntil: 'networkidle2'
+            waitUntil: 'networkidle2',
+            timeout: 60000 // Vamos deixar um timeout de 60s, um meio-termo seguro.
         } );
 
-        console.log('Extraindo dados dos produtos com seletores ATUALIZADOS...');
+        // TÉCNICA 2: PAUSA ESTRATÉGICA
+        console.log('Página carregada. Aguardando 2 segundos para scripts adicionais...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        console.log('Extraindo dados dos produtos...');
         const products = await page.evaluate(() => {
             const items = [];
-            // ***** A MUDANÇA ESTÁ AQUI *****
             document.querySelectorAll('div[data-sqe="item"]').forEach(el => {
                 const title = el.querySelector('div[data-sqe="name"]')?.innerText;
-                const price = el.querySelector('.ZEgIZ+')?.innerText; // Esta classe ainda parece funcionar para o preço
+                const price = el.querySelector('.ZEgIZ+')?.innerText;
                 if (title && price) {
                     items.push({ title, price });
                 }
             });
-            return items.slice(0, 5); // Pega apenas os 5 primeiros
+            return items.slice(0, 5);
         });
 
-        console.log('GARIMPO CONCLUÍDO COM SUCESSO!');
+        console.log(`GARIMPO CONCLUÍDO! Produtos encontrados: ${products.length}`);
         res.setHeader('Content-Type', 'application/json');
         res.send(JSON.stringify(products, null, 2));
 
     } catch (error) {
         console.error('### ERRO DURANTE O GARIMPO ###', error);
-        res.status(500).json({
-            status: 'error',
-            message: 'Ocorreu um erro durante o garimpo.',
-            error: error.message
-        });
+        res.status(500).json({ error: error.message });
     } finally {
         if (browser) {
             await browser.close();
-            console.log('Navegador fechado com sucesso.');
+            console.log('Navegador fechado.');
         }
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`=== SERVIDOR DO ROBÔ RODANDO NA PORTA ${PORT} E PRONTO PARA RECEBER REQUISIÇÕES ===`);
+    console.log(`=== SERVIDOR PRONTO NA PORTA ${PORT} ===`);
 });
