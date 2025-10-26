@@ -1,0 +1,15 @@
+{
+  "name": "amz-ofertas-robo",
+  "version": "1.0.0",
+  "description": "Robô garimpeiro para buscar ofertas na Shopee.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "FelicioFC",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
