@@ -1,24 +1,42 @@
 // ===============================================================
-// SERVER.JS - v.SUPER HUMANO 
+// SERVER.JS - v.FINAL com SOLUCIONADOR DE CAPTCHA
 // ===============================================================
 
-console.log('=== AMZ OFERTAS INICIANDO - v.Super Humano ===');
+console.log('=== AMZ OFERTAS INICIANDO - v.Final com Anti-Captcha ===');
 
 const express = require('express');
 const chromium = require('@sparticuz/chromium');
-const puppeteer = require('puppeteer-core');
+
+// IMPORTANTE: Agora usamos o puppeteer-extra
+const puppeteer = require('puppeteer-extra');
+
+// E adicionamos o plugin de "stealth" (furtividade)
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+
+// E o mais importante: o plugin para resolver CAPTCHAs
+const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
+puppeteer.use(
+  RecaptchaPlugin({
+    provider: {
+      id: '2captcha',
+      token: process.env.CAPTCHA_API_KEY // <-- ELE PEGA A CHAVE DO RENDER AQUI!
+    },
+    visualFeedback: true // Mostra um feedback visual no modo não-headless
+  })
+);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ROTA DE TESTE
 app.get('/', (req, res) => {
-    res.json({ status: 'online', version: 'super-humano' });
+    res.json({ status: 'online', version: 'final-anti-captcha' });
 });
 
 // ROTA DO GARIMPEIRO
 app.get('/scrape', async (req, res) => {
-    console.log('>>> INICIANDO GARIMPO EM MODO SUPER-HUMANO... <<<');
+    console.log('>>> INICIANDO GARIMPO COM ARMAMENTO ANTI-CAPTCHA... <<<');
     let browser = null;
     try {
         browser = await puppeteer.launch({
@@ -37,20 +55,20 @@ app.get('/scrape', async (req, res) => {
 
         const page = await browser.newPage();
         
-        // TÉCNICA 1: MASCARANDO O NAVEGADOR
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
 
-        console.log('Navegando para a Shopee como um "humano"...');
+        console.log('Navegando para a Shopee...');
         await page.goto('https://shopee.com.br/search?keyword=fone%20de%20ouvido%20bluetooth', {
             waitUntil: 'networkidle2',
-            timeout: 60000 // Vamos deixar um timeout de 60s, um meio-termo seguro.
+            timeout: 120000 // Aumentado para 2 minutos para dar tempo de resolver o captcha
         } );
 
-        // TÉCNICA 2: PAUSA ESTRATÉGICA
-        console.log('Página carregada. Aguardando 2 segundos para scripts adicionais...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        console.log('Extraindo dados dos produtos...');
+        console.log('Página carregada. Verificando se há CAPTCHAs...');
+        // O plugin vai tentar resolver o captcha automaticamente aqui.
+        // Se houver um, ele vai parar, enviar para o 2Captcha, e esperar a solução.
+        await page.solveRecaptchas();
+        
+        console.log('CAPTCHA resolvido (ou não era necessário). Extraindo dados...');
         const products = await page.evaluate(() => {
             const items = [];
             document.querySelectorAll('div[data-sqe="item"]').forEach(el => {
