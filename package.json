@@ -1,13 +1,14 @@
 {
   "name": "amz-ofertas-robo",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "cors": "^2.8.5"  // <-- ADICIONAR ESTA LINHA
   },
   "engines": {
     "node": "18.x"
