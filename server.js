@@ -22,12 +22,11 @@ app.get('/scrape/shopee', async (req, res) => {
     
     console.log('🔐 Obtendo cookies da Shopee...');
     
-    // 1. Abrir navegador SÓ para pegar cookies
     const executablePath = await chromium.executablePath();
     browser = await playwright.chromium.launch({
       args: chromium.args,
       executablePath: executablePath,
-      headless: chromium.headless,
+      headless: true,
     });
     
     const context = await browser.newContext({
@@ -37,7 +36,6 @@ app.get('/scrape/shopee', async (req, res) => {
     
     const page = await context.newPage();
     
-    // 2. Visitar página inicial (rápido, sem esperar produtos)
     await page.goto('https://shopee.com.br/', { 
       waitUntil: 'domcontentloaded',
       timeout: 30000 
@@ -45,17 +43,14 @@ app.get('/scrape/shopee', async (req, res) => {
     
     console.log('✅ Cookies obtidos');
     
-    // 3. Pegar cookies
     const cookies = await context.cookies();
     const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
     
-    // 4. Fechar navegador (já temos os cookies)
     await browser.close();
     browser = null;
     
     console.log('📡 Fazendo requisição API com cookies...');
     
-    // 5. Fazer requisição HTTP com os cookies
     const response = await axios.get('https://shopee.com.br/api/v4/search/search_items', {
       params: {
         keyword: query,
@@ -78,7 +73,6 @@ app.get('/scrape/shopee', async (req, res) => {
     
     console.log('✅ Dados recebidos');
     
-    // 6. Processar produtos
     const produtos = response.data.items
       .filter(item => item.item_basic)
       .map(item => {
