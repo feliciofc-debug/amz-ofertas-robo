@@ -7,10 +7,9 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 // ============================================
-// CONFIGURAÇÕES (usar variáveis de ambiente)
+// CONFIGURAÇÕES
 // ============================================
 const LOMADEE_APP_TOKEN = process.env.LOMADEE_APP_TOKEN;
-const LOMADEE_SOURCE_ID = process.env.LOMADEE_SOURCE_ID;
 const HOTMART_BASIC_AUTH = process.env.HOTMART_BASIC_AUTH;
 
 // ============================================
@@ -19,11 +18,11 @@ const HOTMART_BASIC_AUTH = process.env.HOTMART_BASIC_AUTH;
 app.get('/', (req, res) => {
   res.json({ 
     status: 'online',
-    message: 'AMZ Ofertas - Lomadee + Hotmart',
+    message: 'AMZ Ofertas - Lomadee + Hotmart (API Nova)',
     timestamp: new Date().toISOString(),
     endpoints: {
-      lomadee: '/scrape/lomadee?query=notebook&limit=20',
-      hotmart: '/scrape/hotmart?categoria=desenvolvimento&limit=20',
+      lomadee: '/scrape/lomadee?limit=20',
+      hotmart: '/scrape/hotmart?categoria=marketing&limit=20',
       test_lomadee: '/test/lomadee',
       test_hotmart: '/test/hotmart'
     }
@@ -31,53 +30,45 @@ app.get('/', (req, res) => {
 });
 
 // ============================================
-// LOMADEE - SCRAPING
+// LOMADEE - NOVA API
 // ============================================
 app.get('/scrape/lomadee', async (req, res) => {
   try {
-    const { query = 'notebook', limit = 20 } = req.query;
-    const sourceId = parseInt(LOMADEE_SOURCE_ID);
+    const { limit = 20 } = req.query;
 
-    console.log(`🔍 Lomadee: Buscando por "${query}" com sourceId: ${sourceId}`);
+    console.log(`🔍 Lomadee: Buscando brands...`);
     
     const response = await axios.get(
-      `https://api.lomadee.com/v3/${sourceId}/offer/_search`,
+      'https://api-beta.lomadee.com.br/affiliate/brands',
       {
         params: {
-          keyword: query,
-          size: limit
+          limit: limit,
+          page: 1
         },
         headers: {
-          'app_token': LOMADEE_APP_TOKEN,  // ← CORRIGIDO (underscore)
-          'Content-Type': 'application/json'
+          'x-api-key': LOMADEE_APP_TOKEN
         },
         timeout: 30000
       }
     );
     
-    if (!response.data || !response.data.offers) {
-      throw new Error('Lomadee API retornou uma resposta inesperada ou sem ofertas.');
+    if (!response.data || !response.data.data) {
+      throw new Error('Lomadee API retornou resposta inválida');
     }
     
-    const produtos = response.data.offers.map(offer => {
-      const comissao = offer.price * (offer.commission / 100);
+    const produtos = response.data.data.map(brand => {
+      const comissao = brand.commission?.value || 0;
       
       return {
-        titulo: offer.name,
-        preco: parseFloat(offer.price),
-        preco_original: offer.priceFrom ? parseFloat(offer.priceFrom) : null,
-        imagem_url: offer.thumbnail?.url || null,
-        produto_url: offer.link,
-        loja: offer.store?.name || 'N/A',
-        categoria: offer.category?.name || null,
-        comissao_percentual: offer.commission,
-        comissao_valor: parseFloat(comissao.toFixed(2)),
+        titulo: brand.name,
+        preco: 0,
+        imagem_url: brand.logo,
+        produto_url: brand.site,
+        loja: brand.name,
+        comissao_percentual: comissao,
         marketplace: 'lomadee',
-        amz_score: calcularAMZScore({
-          preco: offer.price,
-          preco_original: offer.priceFrom,
-          comissao: comissao
-        })
+        channels: brand.channels?.length || 0,
+        amz_score: Math.min(comissao * 10, 100)
       };
     });
     
@@ -87,29 +78,27 @@ app.get('/scrape/lomadee', async (req, res) => {
       success: true,
       total: produtos.length,
       marketplace: 'lomadee',
-      query: query,
       produtos: produtos
     });
     
   } catch (error) {
-    console.error('❌ Erro na API Lomadee:', error.response ? error.response.data : error.message);
+    console.error('❌ Erro Lomadee:', error.response ? error.response.data : error.message);
     res.status(500).json({
       success: false,
       error: 'Falha ao buscar dados da Lomadee.',
-      details: error.response ? error.response.data : error.message,
-      dica: 'Verifique se LOMADEE_APP_TOKEN e LOMADEE_SOURCE_ID estão corretos nas variáveis de ambiente.'
+      details: error.response ? error.response.data : error.message
     });
   }
 });
 
 // ============================================
-// HOTMART - SCRAPING
+// HOTMART
 // ============================================
 app.get('/scrape/hotmart', async (req, res) => {
   try {
     const { categoria = 'desenvolvimento', limit = 20 } = req.query;
     
-    console.log(`🔍 Hotmart: Buscando por categoria "${categoria}" com limite de ${limit}`);
+    console.log(`🔍 Hotmart: Buscando por categoria "${categoria}"`);
     
     const tokenResponse = await axios.post(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
@@ -124,7 +113,7 @@ app.get('/scrape/hotmart', async (req, res) => {
     );
     
     const accessToken = tokenResponse.data.access_token;
-    console.log('✅ Token de acesso da Hotmart obtido com sucesso.');
+    console.log('✅ Token Hotmart obtido');
     
     const response = await axios.get(
       'https://developers.hotmart.com/payments/api/v1/affiliates/products',
@@ -142,7 +131,7 @@ app.get('/scrape/hotmart', async (req, res) => {
     );
     
     if (!response.data || !response.data.items) {
-      throw new Error('Hotmart API retornou uma resposta inesperada ou sem itens.');
+      throw new Error('Hotmart API retornou resposta inválida');
     }
     
     const produtos = response.data.items.map(produto => {
@@ -179,38 +168,33 @@ app.get('/scrape/hotmart', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erro na API Hotmart:', error.response ? error.response.data : error.message);
+    console.error('❌ Erro Hotmart:', error.response ? error.response.data : error.message);
     res.status(500).json({
       success: false,
       error: 'Falha ao buscar dados da Hotmart.',
-      details: error.response ? error.response.data : error.message,
-      dica: 'Verifique se HOTMART_BASIC_AUTH está correto nas variáveis de ambiente.'
+      details: error.response ? error.response.data : error.message
     });
   }
 });
 
 // ============================================
-// TESTES DE CONEXÃO
+// TESTES
 // ============================================
 app.get('/test/lomadee', async (req, res) => {
   try {
-    const sourceId = parseInt(LOMADEE_SOURCE_ID);
     const response = await axios.get(
-      `https://api.lomadee.com/v3/${sourceId}/offer/_search`,
+      'https://api-beta.lomadee.com.br/affiliate/brands',
       {
-        params: { keyword: 'teste', size: 1 },
-        headers: { 
-          'app_token': LOMADEE_APP_TOKEN,  // ← CORRIGIDO (underscore)
-          'Content-Type': 'application/json' 
-        },
+        params: { limit: 1 },
+        headers: { 'x-api-key': LOMADEE_APP_TOKEN },
         timeout: 10000
       }
     );
     
     res.json({
       success: true,
-      message: 'Lomadee conectado com sucesso!',
-      total_ofertas_teste: response.data.offers?.length || 0
+      message: 'Lomadee conectado com sucesso! (Nova API)',
+      total_brands: response.data.data?.length || 0
     });
   } catch (error) {
     res.status(500).json({
@@ -250,32 +234,8 @@ app.get('/test/hotmart', async (req, res) => {
 });
 
 // ============================================
-// FUNÇÕES DE CÁLCULO AMZ SCORE
+// FUNÇÕES AMZ SCORE
 // ============================================
-function calcularAMZScore(produto) {
-  let score = 0;
-  
-  if (produto.preco_original && produto.preco) {
-    const desconto = ((produto.preco_original - produto.preco) / produto.preco_original) * 100;
-    if (desconto >= 50) score += 40;
-    else if (desconto >= 30) score += 30;
-    else if (desconto >= 20) score += 20;
-    else if (desconto >= 10) score += 10;
-  }
-  
-  if (produto.comissao >= 100) score += 40;
-  else if (produto.comissao >= 50) score += 30;
-  else if (produto.comissao >= 20) score += 20;
-  else if (produto.comissao >= 10) score += 10;
-  
-  if (produto.preco < 100) score += 20;
-  else if (produto.preco < 300) score += 15;
-  else if (produto.preco < 500) score += 10;
-  else if (produto.preco < 1000) score += 5;
-  
-  return Math.min(score, 100);
-}
-
 function calcularAMZScoreHotmart(produto) {
   let score = 0;
   
@@ -297,10 +257,18 @@ function calcularAMZScoreHotmart(produto) {
 }
 
 // ============================================
-// START SERVER
+// START
 // ============================================
 app.listen(PORT, () => {
-  console.log(`🚀 AMZ Ofertas rodando na porta ${PORT}`);
-  console.log(`📡 Lomadee + Hotmart integrados`);
-  console.log(`⚡ Ultra-rápido (sem navegador)`);
+  console.log(`🚀 AMZ Ofertas na porta ${PORT}`);
+  console.log(`📡 Lomadee (Nova API) + Hotmart`);
 });
+```
+
+---
+
+## 🔧 NO RENDER - REMOVA ESTA VARIÁVEL:
+
+Vá em **Environment** e **DELETE:**
+```
+LOMADEE_SOURCE_ID
