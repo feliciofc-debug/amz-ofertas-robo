@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 const playwright = require('playwright-core');
 const chromium = require('@sparticuz/chromium');
 
@@ -9,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => {
   res.json({ 
     status: 'online', 
-    message: 'AMZ Ofertas - Hybrid Mode',
+    message: 'AMZ Ofertas - Interceptor Mode',
     timestamp: new Date().toISOString()
   });
 });
@@ -20,7 +19,7 @@ app.get('/scrape/shopee', async (req, res) => {
   try {
     const { query = 'notebook', limit = 20 } = req.query;
     
-    console.log('🔐 Obtendo cookies da Shopee...');
+    console.log(`🔍 Scraping: ${query}`);
     
     const executablePath = await chromium.executablePath();
     browser = await playwright.chromium.launch({
@@ -31,50 +30,37 @@ app.get('/scrape/shopee', async (req, res) => {
     
     const context = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     });
     
     const page = await context.newPage();
     
-    await page.goto('https://shopee.com.br/', { 
-      waitUntil: 'domcontentloaded',
-      timeout: 30000 
+    let apiData = null;
+    
+    // Interceptar requisição da API
+    page.on('response', async (response) => {
+      if (response.url().includes('api/v4/search/search_items')) {
+        try {
+          apiData = await response.json();
+        } catch (e) {}
+      }
     });
     
-    console.log('✅ Cookies obtidos');
-    
-    const cookies = await context.cookies();
-    const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    // Navegar
+    await page.goto(`https://shopee.com.br/search?keyword=${encodeURIComponent(query)}`, {
+      waitUntil: 'networkidle',
+      timeout: 60000
+    });
     
     await browser.close();
-    browser = null;
     
-    console.log('📡 Fazendo requisição API com cookies...');
+    if (!apiData || !apiData.items) {
+      throw new Error('Não conseguiu interceptar dados');
+    }
     
-    const response = await axios.get('https://shopee.com.br/api/v4/search/search_items', {
-      params: {
-        keyword: query,
-        limit: limit,
-        newest: 0,
-        order: 'desc',
-        page_type: 'search',
-        scenario: 'PAGE_GLOBAL_SEARCH',
-        version: 2
-      },
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'pt-BR,pt;q=0.9',
-        'Referer': 'https://shopee.com.br/',
-        'Cookie': cookieString
-      },
-      timeout: 30000
-    });
-    
-    console.log('✅ Dados recebidos');
-    
-    const produtos = response.data.items
+    const produtos = apiData.items
       .filter(item => item.item_basic)
+      .slice(0, parseInt(limit))
       .map(item => {
         const p = item.item_basic;
         return {
@@ -90,17 +76,15 @@ app.get('/scrape/shopee', async (req, res) => {
     res.json({
       success: true,
       total: produtos.length,
-      metodo: 'HYBRID',
+      metodo: 'INTERCEPTOR',
       produtos: produtos
     });
     
   } catch (error) {
-    console.error('❌ Erro:', error.message);
+    console.error('❌', error.message);
     
     if (browser) {
-      try {
-        await browser.close();
-      } catch (e) {}
+      try { await browser.close(); } catch (e) {}
     }
     
     res.status(500).json({
@@ -111,5 +95,5 @@ app.get('/scrape/shopee', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Porta ${PORT}`);
 });
