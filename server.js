@@ -111,6 +111,8 @@ app.get('/scrape/hotmart', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     
+    console.log('🔍 Hotmart: Obtendo token...');
+    
     const tokenResponse = await axios.post(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
       'grant_type=client_credentials',
@@ -118,11 +120,15 @@ app.get('/scrape/hotmart', async (req, res) => {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': `Basic ${HOTMART_BASIC_AUTH}`
-        }
+        },
+        timeout: 15000
       }
     );
     
     const token = tokenResponse.data.access_token;
+    console.log('✅ Token obtido');
+    
+    console.log('🔍 Hotmart: Buscando produtos...');
     
     const response = await axios.get(
       'https://developers.hotmart.com/payments/api/v1/affiliates/products',
@@ -136,29 +142,16 @@ app.get('/scrape/hotmart', async (req, res) => {
       }
     );
     
+    console.log('Hotmart response:', JSON.stringify(response.data).substring(0, 200));
+    
+    // Verificar se items existe
+    if (!response.data || !response.data.items || !Array.isArray(response.data.items)) {
+      return res.json({
+        success: false,
+        error: 'Hotmart não retornou produtos no formato esperado',
+        debug: response.data
+      });
+    }
+    
     const produtos = response.data.items.map(p => ({
-      titulo: p.name,
-      preco: p.price?.value || 0,
-      imagem: p.image,
-      url: p.affiliateLink,
-      comissao: p.commission?.value || 0,
-      marketplace: 'hotmart'
-    }));
-    
-    res.json({
-      success: true,
-      total: produtos.length,
-      produtos: produtos
-    });
-    
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+      titulo: p.name || 'Sem título',
