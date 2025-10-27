@@ -1,11 +1,12 @@
 // ===============================================================
-// SERVER.JS - v.PLAYWRIGHT - O MOTOR NOVO E CONFIÁVEL
+// SERVER.JS - v.PLAYWRIGHT CORRIGIDO
 // ===============================================================
 
-console.log('=== AMZ OFERTAS INICIANDO - v.Playwright ===');
+console.log('=== AMZ OFERTAS INICIANDO - v.Playwright (Corrigido) ===');
 
 const express = require('express');
-const playwright = require('playwright-aws-lambda');
+// IMPORTANTE: Agora importamos 'playwright'
+const { chromium } = require('playwright'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,8 +19,9 @@ app.get('/scrape', async (req, res) => {
     console.log('>>> INICIANDO GARIMPO COM MOTOR PLAYWRIGHT... <<<');
     let browser = null;
     try {
-        console.log('Iniciando o navegador Playwright...');
-        browser = await playwright.launchChromium({ headless: true });
+        console.log('Iniciando o navegador Chromium do Playwright...');
+        // A forma de iniciar também muda um pouco
+        browser = await chromium.launch(); 
         
         const context = await browser.newContext({
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
@@ -27,15 +29,13 @@ app.get('/scrape', async (req, res) => {
         const page = await context.newPage();
 
         console.log('Navegando para a Shopee...');
-        // O Playwright espera automaticamente, o timeout é mais generoso
         await page.goto('https://shopee.com.br/search?keyword=fone%20de%20ouvido%20bluetooth', { timeout: 120000 } );
 
         console.log('Página carregada. Extraindo dados...');
-        // Usamos 'locator' que é mais inteligente que querySelector
         const productLocators = await page.locator('div[data-sqe="item"]').all();
         
         const products = [];
-        for (const locator of productLocators.slice(0, 5)) { // Pega só os 5 primeiros
+        for (const locator of productLocators.slice(0, 5)) {
             const title = await locator.locator('div[data-sqe="name"]').innerText().catch(() => null);
             const price = await locator.locator('.ZEgIZ+').innerText().catch(() => null);
             if (title && price) {
