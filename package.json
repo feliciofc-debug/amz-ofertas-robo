@@ -1,15 +1,13 @@
 {
   "name": "amz-ofertas-robo",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.0",
-    "playwright-core": "^1.40.0",
-    "@sparticuz/chromium": "^119.0.0"
+    "axios": "^1.6.0"
   },
   "engines": {
     "node": "18.x"
