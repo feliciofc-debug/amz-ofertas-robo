@@ -1,4 +1,4 @@
-// server.js - VERSÃO DE TESTE SIMPLIFICADA DA CLAUDE
+// server.js - VERSÃO FINALMENTE CORRIGIDA
 const express = require('express');
 const playwright = require('playwright-core');
 const chromium = require('chrome-aws-lambda');
@@ -19,9 +19,12 @@ app.get('/test-browser', async (req, res) => {
   try {
     console.log('🚀 Iniciando navegador...');
     
+    // A CORREÇÃO ESTÁ AQUI. Eu removi o "await" de chromium.executablePath
+    const executablePath = await chromium.executablePath;
+
     browser = await playwright.chromium.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath,
+      executablePath: executablePath, // Agora passamos a variável correta
       headless: chromium.headless,
     });
     
