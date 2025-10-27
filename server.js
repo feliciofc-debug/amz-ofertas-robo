@@ -1,8 +1,12 @@
+// SERVER.JS - VERSÃO MODULAR COM CORS
 const express = require('express');
+const cors = require('cors'); // <-- 1. IMPORTAR O CORS
 const { testarLomadee, scraparLomadee } = require('./lomadee');
 const { testarHotmart, scraparHotmart } = require('./hotmart');
 
 const app = express();
+
+app.use(cors()); // <-- 2. USAR O CORS (DEIXA O NAVEGADOR CONECTAR)
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
