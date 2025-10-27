@@ -36,23 +36,24 @@ app.get('/', (req, res) => {
 app.get('/scrape/lomadee', async (req, res) => {
   try {
     const { query = 'notebook', limit = 20 } = req.query;
-    
-    console.log(`🔍 Lomadee: Buscando por "${query}" com limite de ${limit}`);
+    const sourceId = parseInt(LOMADEE_SOURCE_ID);
+
+    console.log(`🔍 Lomadee: Buscando por "${query}" com sourceId: ${sourceId}`);
     
     const response = await axios.get(
-      `https://api.lomadee.com/v3/${LOMADEE_SOURCE_ID}/offer/_search`,
+      `https://api.lomadee.com/v3/${sourceId}/offer/_search`,
       {
         params: {
           keyword: query,
           size: limit
         },
         headers: {
-          'app-token': LOMADEE_APP_TOKEN,
+          'app_token': LOMADEE_APP_TOKEN,  // ← CORRIGIDO (underscore)
           'Content-Type': 'application/json'
         },
         timeout: 30000
       }
-     );
+    );
     
     if (!response.data || !response.data.offers) {
       throw new Error('Lomadee API retornou uma resposta inesperada ou sem ofertas.');
@@ -110,7 +111,6 @@ app.get('/scrape/hotmart', async (req, res) => {
     
     console.log(`🔍 Hotmart: Buscando por categoria "${categoria}" com limite de ${limit}`);
     
-    // 1. Obter token OAuth
     const tokenResponse = await axios.post(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
       `grant_type=client_credentials`,
@@ -121,12 +121,11 @@ app.get('/scrape/hotmart', async (req, res) => {
         },
         timeout: 15000
       }
-     );
+    );
     
     const accessToken = tokenResponse.data.access_token;
     console.log('✅ Token de acesso da Hotmart obtido com sucesso.');
     
-    // 2. Buscar produtos
     const response = await axios.get(
       'https://developers.hotmart.com/payments/api/v1/affiliates/products',
       {
@@ -140,7 +139,7 @@ app.get('/scrape/hotmart', async (req, res) => {
         },
         timeout: 30000
       }
-     );
+    );
     
     if (!response.data || !response.data.items) {
       throw new Error('Hotmart API retornou uma resposta inesperada ou sem itens.');
@@ -158,7 +157,7 @@ app.get('/scrape/hotmart', async (req, res) => {
         produtor: produto.producerName || 'N/A',
         tipo: 'digital',
         categoria: categoria,
-        comissao_valor: parseFloat(comissao ),
+        comissao_valor: parseFloat(comissao),
         marketplace: 'hotmart',
         temperatura: produto.temperature || 'cold',
         amz_score: calcularAMZScoreHotmart({
@@ -195,14 +194,18 @@ app.get('/scrape/hotmart', async (req, res) => {
 // ============================================
 app.get('/test/lomadee', async (req, res) => {
   try {
+    const sourceId = parseInt(LOMADEE_SOURCE_ID);
     const response = await axios.get(
-      `https://api.lomadee.com/v3/${LOMADEE_SOURCE_ID}/offer/_search`,
+      `https://api.lomadee.com/v3/${sourceId}/offer/_search`,
       {
         params: { keyword: 'teste', size: 1 },
-        headers: { 'app-token': LOMADEE_APP_TOKEN, 'Content-Type': 'application/json' },
+        headers: { 
+          'app_token': LOMADEE_APP_TOKEN,  // ← CORRIGIDO (underscore)
+          'Content-Type': 'application/json' 
+        },
         timeout: 10000
       }
-     );
+    );
     
     res.json({
       success: true,
@@ -230,7 +233,7 @@ app.get('/test/hotmart', async (req, res) => {
         },
         timeout: 10000
       }
-     );
+    );
     
     res.json({
       success: true,
