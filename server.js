@@ -1,4 +1,4 @@
-// server.js - SOLUÇÃO 1 DA CLAUDE (@sparticuz/chromium)
+// server.js - CORREÇÃO FINAL DA PROPRIEDADE HEADLESS
 const express = require('express');
 const playwright = require('playwright-core');
 const chromium = require('@sparticuz/chromium');
@@ -18,15 +18,13 @@ app.get('/test-browser', async (req, res) => {
   let browser = null;
   try {
     console.log('🚀 Iniciando navegador...');
-    console.log('Chromium args:', chromium.args);
-    
     const executablePath = await chromium.executablePath();
-    console.log('Executable path:', executablePath);
     
     browser = await playwright.chromium.launch({
       args: chromium.args,
       executablePath: executablePath,
-      headless: chromium.headless,
+      // A CORREÇÃO ESTÁ AQUI. Troquei chromium.headless por true.
+      headless: true, 
     });
     
     console.log('✅ Navegador iniciado!');
