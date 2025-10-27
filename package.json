@@ -1,16 +1,16 @@
 {
   "name": "amz-ofertas-robo",
   "version": "1.0.0",
-  "description": "Robô garimpeiro para o projeto AMZ Ofertas.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "npx playwright install --with-deps"
+    "start": "node server.js"
   },
-  "author": "FelicioFC",
-  "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
-    "playwright": "^1.40.1"
+    "playwright-core": "^1.40.0",
+    "chrome-aws-lambda": "^10.1.0"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
