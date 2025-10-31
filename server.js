@@ -158,4 +158,18 @@ app.get('/auth/callback/meta', async (req, res) => {
       console.error('❌ [OAuth] Código de autorização não recebido');
       return res.redirect(`${FRONTEND_URL}/redes-sociais?error=no_code`);
     }
-    co
+    // Troca o code por access_token
+    const tokenUrl = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(META_REDIRECT_URI)}&client_secret=${META_APP_SECRET}&code=${code}`;
+    const response = await axios.get(tokenUrl);
+    const accessToken = response.data.access_token;
+    // Você pode salvar o access_token na conta do usuário ou redirecionar para o frontend com ele
+    return res.redirect(`${FRONTEND_URL}/redes-sociais?success=meta&access_token=${accessToken}`);
+  } catch (err) {
+    console.error('❌ [OAuth] Erro durante callback Meta:', err.message);
+    return res.redirect(`${FRONTEND_URL}/redes-sociais?error=callback_failed`);
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server rodando na porta ${PORT}`);
+});
