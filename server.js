@@ -4,7 +4,6 @@ const cors = require('cors');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Importar módulos existentes
 const { testarLomadee, scraparLomadee } = require('./lomadee');
 const { testarHotmart, scraparHotmart } = require('./hotmart');
 
@@ -12,22 +11,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- CONFIGURAÇÃO DAS CHAVES E VARIÁVEIS ---
 const PORT = process.env.PORT || 3000;
 const LOMADEE_APP_TOKEN = process.env.LOMADEE_APP_TOKEN;
 const HOTMART_BASIC_AUTH = process.env.HOTMART_BASIC_AUTH;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-// NOVAS VARIÁVEIS META/FACEBOOK
 const META_APP_ID = process.env.META_APP_ID;
 const META_APP_SECRET = process.env.META_APP_SECRET;
 const META_REDIRECT_URI = process.env.META_REDIRECT_URI || 'https://amz-ofertas-robo.onrender.com/auth/callback/meta';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.amzofertas.com.br';
 
-// --- INICIALIZAÇÃO DA IA ---
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// --- ROTAS EXISTENTES (INTOCADAS) ---
 app.get('/', (req, res) => {
   res.json({
     status: 'online',
@@ -66,34 +60,25 @@ app.get('/scrape/hotmart', async (req, res) => {
   res.json(resultado);
 });
 
-// --- ROTAS IA MARKETING ---
-
 app.post('/analisar-produto', async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) {
       return res.status(400).json({ success: false, error: 'URL do produto é obrigatória.' });
     }
-    
     console.log(`🤖 [IA] Analisando URL: ${url}`);
-    
     const produto = await extrairInfoProduto(url);
     const score = calcularScoreConversao(produto);
     const posts = await gerarPostsIA(produto);
-    
     res.json({
       success: true,
       produto: produto,
       score_conversao: score,
       posts: posts
     });
-    
   } catch (error) {
     console.error('❌ [IA] Erro no endpoint /analisar-produto:', error.message);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Falha ao analisar o produto com a IA.' 
-    });
+    res.status(500).json({ success: false, error: 'Falha ao analisar o produto com a IA.' });
   }
 });
 
@@ -119,23 +104,18 @@ function calcularScoreConversao(produto) {
 async function gerarPostsIA(produto) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    
     const promptInsta = `Crie um post de no máximo 150 caracteres para Instagram sobre o produto '${produto.titulo}' que custa R$${produto.preco}. Use 3 emojis e uma chamada para ação clara.`;
     const resultInsta = await model.generateContent(promptInsta);
     const textoInsta = resultInsta.response.text();
-    
     const promptWhats = `Crie uma mensagem curta para WhatsApp, como se fosse um amigo indicando o produto '${produto.titulo}' por R$${produto.preco}. Use emojis e termine com 'Confere aí:'.`;
     const resultWhats = await model.generateContent(promptWhats);
     const textoWhats = resultWhats.response.text();
-    
     console.log("[IA] Textos gerados com sucesso pelo Gemini.");
-    
     return {
       instagram: textoInsta.trim(),
       story: `🔥 OFERTA IMPERDÍVEL 🔥\n\n${produto.titulo}\n\nPor apenas R$ ${produto.preco}!\n\nArrasta pra cima! 👆`,
       whatsapp: textoWhats.trim()
     };
-    
   } catch (error) {
     console.error('❌ [IA] Erro ao gerar conteúdo com o Gemini:', error);
     return {
@@ -146,55 +126,36 @@ async function gerarPostsIA(produto) {
   }
 }
 
-// --- NOVAS ROTAS OAUTH META/INSTAGRAM ---
-
-// ROTA 1: Iniciar conexão com Instagram
 app.get('/auth/instagram/connect', (req, res) => {
   try {
     const { user_id } = req.query;
-    
     if (!user_id) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'user_id é obrigatório' 
-      });
+      return res.status(400).json({ success: false, error: 'user_id é obrigatório' });
     }
-    
-    // Validar se as credenciais Meta estão configuradas
     if (!META_APP_ID || !META_APP_SECRET) {
       console.error('❌ [OAuth] Credenciais Meta não configuradas!');
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Credenciais Meta não configuradas no servidor' 
-      });
+      return res.status(500).json({ success: false, error: 'Credenciais Meta não configuradas no servidor' });
     }
-    
-    // Construir URL de autorização do Facebook
-    const scopes = [
-      'instagram_basic',
-      'instagram_content_publish',
-      'pages_show_list',
-      'pages_read_engagement'
-    ].join(',');
-    
-    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
-      `client_id=${META_APP_ID}&` +
-      `redirect_uri=${encodeURIComponent(META_REDIRECT_URI)}&` +
-      `scope=${scopes}&` +
-      `response_type=code&` +
-      `state=${user_id}`;
-    
+    const scopes = ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement'].join(',');
+    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(META_REDIRECT_URI)}&scope=${scopes}&response_type=code&state=${user_id}`;
     console.log(`✅ [OAuth] Redirecionando usuário ${user_id} para autenticação Meta`);
     res.redirect(authUrl);
-    
   } catch (error) {
     console.error('❌ [OAuth] Erro na rota /auth/instagram/connect:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Erro ao iniciar autenticação' 
-    });
+    res.status(500).json({ success: false, error: 'Erro ao iniciar autenticação' });
   }
 });
 
-// ROTA 2: Callback após autorização
-app.get('/auth/callb
+app.get('/auth/callback/meta', async (req, res) => {
+  try {
+    const { code, state, error, error_description } = req.query;
+    const userId = state;
+    if (error) {
+      console.error(`❌ [OAuth] Usuário negou permissões: ${error_description}`);
+      return res.redirect(`${FRONTEND_URL}/redes-sociais?error=access_denied`);
+    }
+    if (!code) {
+      console.error('❌ [OAuth] Código de autorização não recebido');
+      return res.redirect(`${FRONTEND_URL}/redes-sociais?error=no_code`);
+    }
+    co
