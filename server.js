@@ -1,8 +1,8 @@
-// SERVER.JS - VERSÃO COM IA MARKETING (GEMINI)
+// SERVER.JS - VERSÃO COM IA MARKETING (GEMINI) + OAUTH META
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios'); // <-- Adicionado para futuras integrações
-const { GoogleGenerativeAI } = require("@google/generative-ai"); // <-- 1. IMPORTAR A IA
+const axios = require('axios');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // Importar módulos existentes
 const { testarLomadee, scraparLomadee } = require('./lomadee');
@@ -16,7 +16,13 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const LOMADEE_APP_TOKEN = process.env.LOMADEE_APP_TOKEN;
 const HOTMART_BASIC_AUTH = process.env.HOTMART_BASIC_AUTH;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // <-- 2. PEGAR A CHAVE DO GEMINI
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// NOVAS VARIÁVEIS META/FACEBOOK
+const META_APP_ID = process.env.META_APP_ID;
+const META_APP_SECRET = process.env.META_APP_SECRET;
+const META_REDIRECT_URI = process.env.META_REDIRECT_URI || 'https://amz-ofertas-robo.onrender.com/auth/callback/meta';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.amzofertas.com.br';
 
 // --- INICIALIZAÇÃO DA IA ---
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -25,13 +31,15 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 app.get('/', (req, res) => {
   res.json({
     status: 'online',
-    message: 'AMZ Ofertas API - v5 com IA Marketing', // Versão atualizada
+    message: 'AMZ Ofertas API - v6 com OAuth Meta',
     endpoints: {
       test_lomadee: '/test/lomadee',
       test_hotmart: '/test/hotmart',
       scrape_lomadee: '/scrape/lomadee?limit=20',
       scrape_hotmart: '/scrape/hotmart?limit=20',
-      ia_marketing: 'POST /analisar-produto' // Novo endpoint
+      ia_marketing: 'POST /analisar-produto',
+      auth_instagram: '/auth/instagram/connect?user_id={id}',
+      auth_callback: '/auth/callback/meta'
     }
   });
 });
@@ -58,9 +66,8 @@ app.get('/scrape/hotmart', async (req, res) => {
   res.json(resultado);
 });
 
-// --- NOVAS ROTAS E FUNÇÕES DA "IA MARKETING" ---
+// --- ROTAS IA MARKETING ---
 
-// ENDPOINT PRINCIPAL DA IA
 app.post('/analisar-produto', async (req, res) => {
   try {
     const { url } = req.body;
@@ -70,16 +77,10 @@ app.post('/analisar-produto', async (req, res) => {
     
     console.log(`🤖 [IA] Analisando URL: ${url}`);
     
-    // 1. Extrair informações do link (usando mock por enquanto)
     const produto = await extrairInfoProduto(url);
-    
-    // 2. Calcular o Score de Conversão
     const score = calcularScoreConversao(produto);
-    
-    // 3. Gerar os posts com a IA Gemini
     const posts = await gerarPostsIA(produto);
     
-    // 4. Enviar a resposta completa para o frontend
     res.json({
       success: true,
       produto: produto,
@@ -96,39 +97,33 @@ app.post('/analisar-produto', async (req, res) => {
   }
 });
 
-// FUNÇÃO MOCK PARA EXTRAIR DADOS DO PRODUTO (A SER MELHORADA NO FUTURO)
 async function extrairInfoProduto(url) {
   console.log(`[IA] Extraindo dados (mock) da URL: ${url}`);
-  // No futuro, aqui entrará o scraping real da URL
   return {
     titulo: "Notebook Gamer SuperPower X15",
     preco: 4999.90,
-    imagem: "https://i.zst.com.br/thumbs/12/3/3b/1880495348.jpg", // Imagem de exemplo
+    imagem: "https://i.zst.com.br/thumbs/12/3/3b/1880495348.jpg",
     avaliacao: 4.8,
     vendas: 1523
   };
 }
 
-// FUNÇÃO PARA CALCULAR O SCORE DE CONVERSÃO
-function calcularScoreConversao(produto ) {
-  let score = 5.0; // Score base
+function calcularScoreConversao(produto) {
+  let score = 5.0;
   if (produto.avaliacao >= 4.5) score += 2;
   if (produto.vendas >= 1000) score += 2;
   if (produto.preco >= 100 && produto.preco <= 500) score += 1;
-  return Math.min(score, 10); // Garante que o score não passe de 10
+  return Math.min(score, 10);
 }
 
-// FUNÇÃO QUE USA A IA DO GEMINI PARA GERAR OS TEXTOS
 async function gerarPostsIA(produto) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
-    // Prompt para o post do Instagram
     const promptInsta = `Crie um post de no máximo 150 caracteres para Instagram sobre o produto '${produto.titulo}' que custa R$${produto.preco}. Use 3 emojis e uma chamada para ação clara.`;
     const resultInsta = await model.generateContent(promptInsta);
     const textoInsta = resultInsta.response.text();
     
-    // Prompt para a mensagem do WhatsApp
     const promptWhats = `Crie uma mensagem curta para WhatsApp, como se fosse um amigo indicando o produto '${produto.titulo}' por R$${produto.preco}. Use emojis e termine com 'Confere aí:'.`;
     const resultWhats = await model.generateContent(promptWhats);
     const textoWhats = resultWhats.response.text();
@@ -143,7 +138,6 @@ async function gerarPostsIA(produto) {
     
   } catch (error) {
     console.error('❌ [IA] Erro ao gerar conteúdo com o Gemini:', error);
-    // Plano B: Se a IA falhar, retorna um texto padrão
     return {
       instagram: `🔥 Imperdível! ${produto.titulo} por apenas R$ ${produto.preco}! Corra e aproveite. Link na bio! 🚀`,
       story: `OFERTA RELÂMPAGO!\n${produto.titulo}\nR$ ${produto.preco}`,
@@ -152,7 +146,55 @@ async function gerarPostsIA(produto) {
   }
 }
 
-// --- INICIALIZAÇÃO DO SERVIDOR ---
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor do Reino rodando na porta ${PORT}`);
+// --- NOVAS ROTAS OAUTH META/INSTAGRAM ---
+
+// ROTA 1: Iniciar conexão com Instagram
+app.get('/auth/instagram/connect', (req, res) => {
+  try {
+    const { user_id } = req.query;
+    
+    if (!user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'user_id é obrigatório' 
+      });
+    }
+    
+    // Validar se as credenciais Meta estão configuradas
+    if (!META_APP_ID || !META_APP_SECRET) {
+      console.error('❌ [OAuth] Credenciais Meta não configuradas!');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Credenciais Meta não configuradas no servidor' 
+      });
+    }
+    
+    // Construir URL de autorização do Facebook
+    const scopes = [
+      'instagram_basic',
+      'instagram_content_publish',
+      'pages_show_list',
+      'pages_read_engagement'
+    ].join(',');
+    
+    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
+      `client_id=${META_APP_ID}&` +
+      `redirect_uri=${encodeURIComponent(META_REDIRECT_URI)}&` +
+      `scope=${scopes}&` +
+      `response_type=code&` +
+      `state=${user_id}`;
+    
+    console.log(`✅ [OAuth] Redirecionando usuário ${user_id} para autenticação Meta`);
+    res.redirect(authUrl);
+    
+  } catch (error) {
+    console.error('❌ [OAuth] Erro na rota /auth/instagram/connect:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao iniciar autenticação' 
+    });
+  }
 });
+
+// ROTA 2: Callback após autorização
+app.get('/auth/callb
